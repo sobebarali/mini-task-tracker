@@ -1,3 +1,4 @@
+import { createRequestLogger } from "../../../utils/logger";
 import signup from "../repository/signup.auth";
 import type { typeResult } from "../types/signup.auth";
 
@@ -12,20 +13,25 @@ export const signupAuth = async ({
 	password: string;
 	requestId: string;
 }): Promise<typeResult> => {
+	const logger = createRequestLogger(requestId);
+
 	try {
-		const startTime = Date.now();
-		console.log(`[${requestId}] Signup service started`, { name, email });
+		logger.info("Signup service started", { name, email });
 
 		// Call repository function
 		const result = await signup({ name, email, password });
 
-		const duration = Date.now() - startTime;
-		console.log(`[${requestId}] Signup service completed in ${duration}ms`);
+		if (result.data) {
+			logger.info("Signup service completed", {
+				userId: result.data.userId,
+				email,
+			});
+		}
 
 		return result;
 	} catch (error) {
 		const err = error as Error;
-		console.error(`[${requestId}] Signup service error:`, err.message);
+		logger.error("Signup service error", err, { name, email });
 
 		return {
 			data: null,

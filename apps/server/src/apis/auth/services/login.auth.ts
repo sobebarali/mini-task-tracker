@@ -1,3 +1,4 @@
+import { createRequestLogger } from "../../../utils/logger";
 import login from "../repository/login.auth";
 import type { typeResult } from "../types/login.auth";
 
@@ -10,20 +11,30 @@ export const loginAuth = async ({
 	password: string;
 	requestId: string;
 }): Promise<typeResult> => {
+	const logger = createRequestLogger(requestId);
+
 	try {
-		const startTime = Date.now();
-		console.log(`[${requestId}] Login service started`, { email });
+		logger.info("Login service started", { email });
 
 		// Call repository function
 		const result = await login({ email, password });
 
-		const duration = Date.now() - startTime;
-		console.log(`[${requestId}] Login service completed in ${duration}ms`);
+		if (result.data) {
+			logger.info("Login service completed", {
+				userId: result.data.userId,
+				email,
+			});
+		} else {
+			logger.warn("Login failed", {
+				email,
+				reason: result.error?.code || "UNKNOWN",
+			});
+		}
 
 		return result;
 	} catch (error) {
 		const err = error as Error;
-		console.error(`[${requestId}] Login service error:`, err.message);
+		logger.error("Login service error", err, { email });
 
 		return {
 			data: null,

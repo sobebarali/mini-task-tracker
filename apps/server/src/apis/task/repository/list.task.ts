@@ -1,4 +1,5 @@
 import { type ITask, redis, Task } from "@mini-task-tracker/db";
+import { logDebug, logInfo } from "../../../utils/logger";
 import type { typeResult } from "../types/list.task";
 
 const CACHE_TTL = 300; // 5 minutes
@@ -46,16 +47,18 @@ export default async function list({
 		// Try to get from cache
 		const cachedData = await redis.get(cacheKey);
 		if (cachedData) {
-			console.log(`Cache hit for user ${userId} with filters:`, {
-				status,
-				dueDate,
+			logDebug("Cache hit for list tasks", {
+				userId,
+				cacheKey,
+				filters: { status, dueDate },
 			});
 			return JSON.parse(cachedData);
 		}
 
-		console.log(`Cache miss for user ${userId} with filters:`, {
-			status,
-			dueDate,
+		logDebug("Cache miss for list tasks", {
+			userId,
+			cacheKey,
+			filters: { status, dueDate },
 		});
 
 		// Build query
@@ -74,6 +77,12 @@ export default async function list({
 		// Get from database
 		const tasks = await Task.find(query).sort({ createdAt: -1 });
 
+		logInfo("Tasks fetched from database", {
+			userId,
+			count: tasks.length,
+			filters: { status, dueDate },
+		});
+
 		const result: typeResult = {
 			data: {
 				tasks: tasks.map(taskToPlain),
@@ -84,6 +93,7 @@ export default async function list({
 
 		// Cache the result
 		await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
+		logDebug("Tasks cached", { userId, cacheKey, ttl: CACHE_TTL });
 
 		return result;
 	} catch (error) {

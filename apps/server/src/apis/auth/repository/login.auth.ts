@@ -1,6 +1,7 @@
 import { User } from "@mini-task-tracker/db";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { logDebug, logInfo, logWarn } from "../../../utils/logger";
 import type { typeResult } from "../types/login.auth";
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -17,9 +18,12 @@ export default async function login({
 	password: string;
 }): Promise<typeResult> {
 	try {
+		logDebug("Finding user by email", { email });
+
 		// Find user by email (include password field for verification)
 		const user = await User.findOne({ email }).select("+password");
 		if (!user) {
+			logWarn("Login failed - user not found", { email });
 			return {
 				data: null,
 				error: {
@@ -31,9 +35,15 @@ export default async function login({
 			};
 		}
 
+		logDebug("Verifying password", { email, userId: String(user._id) });
+
 		// Verify password
 		const isPasswordValid = await bcrypt.compare(password, user.password);
 		if (!isPasswordValid) {
+			logWarn("Login failed - invalid password", {
+				email,
+				userId: String(user._id),
+			});
 			return {
 				data: null,
 				error: {
@@ -44,6 +54,12 @@ export default async function login({
 				},
 			};
 		}
+
+		logDebug("Generating JWT token", {
+			email,
+			userId: String(user._id),
+			expiresIn: JWT_EXPIRES_IN,
+		});
 
 		// Generate JWT token
 		const token = jwt.sign(
@@ -54,6 +70,11 @@ export default async function login({
 			JWT_SECRET as string,
 			{ expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions,
 		);
+
+		logInfo("User logged in successfully", {
+			userId: String(user._id),
+			email,
+		});
 
 		return {
 			data: {

@@ -14,16 +14,13 @@ export async function setupTestDB() {
 		if (isDocker) {
 			// Use real MongoDB in Docker
 			const mongoUri = process.env.DATABASE_URL as string;
-			console.log("🐳 Using Docker MongoDB for tests");
 			await mongoose.connect(mongoUri);
 		} else {
 			// Use mongodb-memory-server for local development
-			console.log("💻 Using mongodb-memory-server for tests");
 			mongoServer = await MongoMemoryServer.create();
 			const mongoUri = mongoServer.getUri();
 			await mongoose.connect(mongoUri);
 		}
-		console.log("Test database connected");
 	} catch (error) {
 		console.error("Error setting up test database:", error);
 		throw error;
@@ -43,7 +40,6 @@ export async function teardownTestDB() {
 			await mongoServer.stop();
 			mongoServer = undefined;
 		}
-		console.log("Test database disconnected");
 	} catch (error) {
 		console.error("Error tearing down test database:", error);
 		throw error;

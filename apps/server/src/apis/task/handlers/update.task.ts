@@ -1,3 +1,4 @@
+import { createRequestLogger } from "../../../utils/logger";
 import update from "../repository/update.task";
 import type { typeResult } from "../types/update.task";
 
@@ -18,8 +19,14 @@ export default async function updateTasksHandler({
 	userId: string;
 	requestId: string;
 }): Promise<typeResult> {
+	const logger = createRequestLogger(requestId);
+
 	try {
-		console.log(`[${requestId}] Update task handler started`);
+		logger.info("Update task handler started", {
+			taskId,
+			userId,
+			updateFields: { title, description, status, dueDate },
+		});
 
 		// Call repository
 		const result = await update({
@@ -31,11 +38,28 @@ export default async function updateTasksHandler({
 			userId,
 		});
 
-		console.log(`[${requestId}] Update task handler completed`);
+		if (result.data) {
+			logger.info("Update task handler completed", {
+				taskId,
+				userId,
+				updatedFields: { title, description, status, dueDate },
+			});
+		} else {
+			logger.warn("Update task failed", {
+				taskId,
+				userId,
+				reason: result.error?.code || "UNKNOWN",
+			});
+		}
+
 		return result;
 	} catch (error) {
 		const err = error as Error;
-		console.error(`[${requestId}] Update task handler error:`, err.message);
+		logger.error("Update task handler error", err, {
+			taskId,
+			userId,
+			updateFields: { title, description, status, dueDate },
+		});
 
 		return {
 			data: null,

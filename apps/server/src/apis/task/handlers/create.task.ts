@@ -1,3 +1,4 @@
+import { createRequestLogger } from "../../../utils/logger";
 import create from "../repository/create.task";
 import type { typeResult } from "../types/create.task";
 
@@ -16,8 +17,13 @@ export default async function createTasksHandler({
 	userId: string;
 	requestId: string;
 }): Promise<typeResult> {
+	const logger = createRequestLogger(requestId);
+
 	try {
-		console.log(`[${requestId}] Create task handler started`);
+		logger.info("Create task handler started", {
+			userId,
+			payload: { title, description, status, dueDate },
+		});
 
 		// Call repository
 		const result = await create({
@@ -28,11 +34,21 @@ export default async function createTasksHandler({
 			userId,
 		});
 
-		console.log(`[${requestId}] Create task handler completed`);
+		if (result.data) {
+			logger.info("Create task handler completed", {
+				userId,
+				taskId: result.data.id,
+				title,
+			});
+		}
+
 		return result;
 	} catch (error) {
 		const err = error as Error;
-		console.error(`[${requestId}] Create task handler error:`, err.message);
+		logger.error("Create task handler error", err, {
+			userId,
+			payload: { title, description, status, dueDate },
+		});
 
 		return {
 			data: null,

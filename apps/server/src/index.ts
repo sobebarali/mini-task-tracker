@@ -6,8 +6,13 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import authRoutes from "./apis/auth/auth.routes";
 import taskRoutes from "./apis/task/task.routes";
+import { httpLogger } from "./middleware/http-logger.middleware";
+import { logError, logInfo } from "./utils/logger";
 
 const app = express();
+
+// HTTP request logging (before other middleware)
+app.use(httpLogger);
 
 // Security headers
 app.use(helmet());
@@ -77,16 +82,19 @@ app.use("/api/tasks", taskRoutes);
 
 const port = process.env.PORT || 3000;
 const server = app.listen(port, () => {
-	console.log(`Server is running on port ${port}`);
+	logInfo("Server started", {
+		port,
+		environment: process.env.NODE_ENV || "development",
+	});
 });
 
 // Graceful shutdown handling
 const gracefulShutdown = async (signal: string) => {
-	console.log(`\n${signal} received. Starting graceful shutdown...`);
+	logInfo("Starting graceful shutdown", { signal });
 
 	// Stop accepting new connections
 	server.close(async () => {
-		console.log("HTTP server closed");
+		logInfo("HTTP server closed");
 
 		try {
 			// Close database connections
@@ -94,23 +102,25 @@ const gracefulShutdown = async (signal: string) => {
 
 			// Close MongoDB connection
 			await db.close();
-			console.log("MongoDB connection closed");
+			logInfo("MongoDB connection closed");
 
 			// Close Redis connection
 			redis.disconnect();
-			console.log("Redis connection closed");
+			logInfo("Redis connection closed");
 
-			console.log("Graceful shutdown completed");
+			logInfo("Graceful shutdown completed");
 			process.exit(0);
 		} catch (error) {
-			console.error("Error during graceful shutdown:", error);
+			logError("Error during graceful shutdown", error);
 			process.exit(1);
 		}
 	});
 
 	// Force shutdown after 10 seconds
 	setTimeout(() => {
-		console.error("Forcefully shutting down after timeout (10 seconds)");
+		logError("Forcefully shutting down after timeout", undefined, {
+			timeoutSeconds: 10,
+		});
 		process.exit(1);
 	}, 10000);
 };
@@ -121,15 +131,21 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (error: Error) => {
-	console.error("Uncaught Exception:", error);
+	logError("Uncaught Exception", error);
 	gracefulShutdown("uncaughtException");
 });
 
 // Handle unhandled promise rejections
 process.on(
 	"unhandledRejection",
-	(reason: unknown, promise: Promise<unknown>) => {
-		console.error("Unhandled Rejection at:", promise, "reason:", reason);
+	(reason: unknown, _promise: Promise<unknown>) => {
+		logError(
+			"Unhandled Rejection",
+			reason instanceof Error ? reason : undefined,
+			{
+				reason: String(reason),
+			},
+		);
 		gracefulShutdown("unhandledRejection");
 	},
 );

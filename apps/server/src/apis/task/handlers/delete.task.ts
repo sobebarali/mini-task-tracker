@@ -1,3 +1,4 @@
+import { createRequestLogger } from "../../../utils/logger";
 import remove from "../repository/delete.task";
 import type { typeResult } from "../types/delete.task";
 
@@ -10,17 +11,28 @@ export default async function deleteTasksHandler({
 	userId: string;
 	requestId: string;
 }): Promise<typeResult> {
+	const logger = createRequestLogger(requestId);
+
 	try {
-		console.log(`[${requestId}] Delete task handler started`);
+		logger.info("Delete task handler started", { taskId, userId });
 
 		// Call repository
 		const result = await remove({ taskId, userId });
 
-		console.log(`[${requestId}] Delete task handler completed`);
+		if (result.data) {
+			logger.info("Delete task handler completed", { taskId, userId });
+		} else {
+			logger.warn("Delete task failed", {
+				taskId,
+				userId,
+				reason: result.error?.code || "UNKNOWN",
+			});
+		}
+
 		return result;
 	} catch (error) {
 		const err = error as Error;
-		console.error(`[${requestId}] Delete task handler error:`, err.message);
+		logger.error("Delete task handler error", err, { taskId, userId });
 
 		return {
 			data: null,

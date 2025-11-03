@@ -1,25 +1,7 @@
-import { type ITask, redis, Task } from "@mini-task-tracker/db";
+import { Task } from "@mini-task-tracker/db";
+import { invalidateCache } from "../helpers/cache-invalidator";
+import { taskToPlain } from "../helpers/task-transformer";
 import type { typeResult } from "../types/create.task";
-
-// Helper to convert Mongoose document to plain object
-const taskToPlain = (task: ITask) => ({
-	id: String(task._id),
-	title: task.title,
-	description: task.description,
-	status: task.status,
-	dueDate: task.dueDate?.toISOString(),
-	owner: String(task.owner),
-	createdAt: task.createdAt.toISOString(),
-});
-
-// Helper to invalidate user cache
-const invalidateCache = async (userId: string): Promise<void> => {
-	const pattern = `tasks:${userId}*`;
-	const keys = await redis.keys(pattern);
-	if (keys.length > 0) {
-		await redis.del(...keys);
-	}
-};
 
 export default async function create({
 	title,

@@ -1,3 +1,4 @@
+import { createRequestLogger } from "../../../utils/logger";
 import get from "../repository/get.task";
 import type { typeResult } from "../types/get.task";
 
@@ -10,17 +11,28 @@ export default async function getTasksHandler({
 	userId: string;
 	requestId: string;
 }): Promise<typeResult> {
+	const logger = createRequestLogger(requestId);
+
 	try {
-		console.log(`[${requestId}] Get task handler started`);
+		logger.info("Get task handler started", { taskId, userId });
 
 		// Call repository
 		const result = await get({ taskId, userId });
 
-		console.log(`[${requestId}] Get task handler completed`);
+		if (result.data) {
+			logger.info("Get task handler completed", {
+				taskId,
+				userId,
+				taskFound: true,
+			});
+		} else {
+			logger.warn("Task not found", { taskId, userId });
+		}
+
 		return result;
 	} catch (error) {
 		const err = error as Error;
-		console.error(`[${requestId}] Get task handler error:`, err.message);
+		logger.error("Get task handler error", err, { taskId, userId });
 
 		return {
 			data: null,

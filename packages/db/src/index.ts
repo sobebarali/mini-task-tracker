@@ -3,19 +3,15 @@ import mongoose from "mongoose";
 
 // MongoDB connection
 const DATABASE_URL = process.env.DATABASE_URL;
-console.log("DATABASE_URL:", DATABASE_URL);
 if (!DATABASE_URL) {
 	console.error("DATABASE_URL environment variable is not set");
 	throw new Error("DATABASE_URL is required");
 }
 
-console.log("Connecting to MongoDB...");
 await mongoose.connect(DATABASE_URL).catch((error) => {
-	console.log("Error connecting to database:", error);
 	throw error;
 });
 
-console.log("MongoDB connected successfully");
 const db = mongoose.connection;
 
 // Redis connection
@@ -29,12 +25,12 @@ const redis = new Redis({
 	maxRetriesPerRequest: 3,
 });
 
-redis.on("error", (error: Error) => {
-	console.log("Redis connection error:", error);
+redis.on("error", (_error: Error) => {
+	// Redis connection error
 });
 
 redis.on("connect", () => {
-	console.log("Redis connected successfully");
+	// Redis connected
 });
 
 export { type ITask, Task, TaskStatus } from "./models/task.model";

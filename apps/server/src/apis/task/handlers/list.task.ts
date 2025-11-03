@@ -1,3 +1,4 @@
+import { createRequestLogger } from "../../../utils/logger";
 import list from "../repository/list.task";
 import type { typeResult } from "../types/list.task";
 
@@ -12,10 +13,12 @@ export default async function listTasksHandler({
 	userId: string;
 	requestId: string;
 }): Promise<typeResult> {
+	const logger = createRequestLogger(requestId);
+
 	try {
-		console.log(`[${requestId}] List tasks handler started with filters:`, {
-			status,
-			dueDate,
+		logger.info("List tasks handler started", {
+			userId,
+			filters: { status, dueDate },
 		});
 
 		// Call repository
@@ -25,11 +28,21 @@ export default async function listTasksHandler({
 			userId,
 		});
 
-		console.log(`[${requestId}] List tasks handler completed`);
+		if (result.data) {
+			logger.info("List tasks handler completed", {
+				userId,
+				total: result.data.total,
+				filters: { status, dueDate },
+			});
+		}
+
 		return result;
 	} catch (error) {
 		const err = error as Error;
-		console.error(`[${requestId}] List tasks handler error:`, err.message);
+		logger.error("List tasks handler error", err, {
+			userId,
+			filters: { status, dueDate },
+		});
 
 		return {
 			data: null,

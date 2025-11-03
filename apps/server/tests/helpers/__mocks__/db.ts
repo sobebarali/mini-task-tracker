@@ -57,8 +57,6 @@ const userSchema = new Schema<IUser>(
 	},
 );
 
-userSchema.index({ email: 1 });
-
 export const User = mongoose.model<IUser>("User", userSchema);
 
 // Mock Task Schema (will be connected to MongoDB Memory Server)
