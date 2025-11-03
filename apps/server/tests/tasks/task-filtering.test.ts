@@ -100,6 +100,7 @@ describe("Task API - Filtering", () => {
 
 			expect(response.body.data.tasks).toHaveLength(3);
 			expect(response.body.data.total).toBe(3);
+			// biome-ignore lint/suspicious/noExplicitAny: test response body is untyped
 			response.body.data.tasks.forEach((task: any) => {
 				expect(task.status).toBe(TaskStatus.PENDING);
 			});
@@ -126,6 +127,7 @@ describe("Task API - Filtering", () => {
 			expect(response.body.data.total).toBe(3);
 
 			// All returned tasks should have dueDate <= 2024-01-15
+			// biome-ignore lint/suspicious/noExplicitAny: test response body is untyped
 			response.body.data.tasks.forEach((task: any) => {
 				expect(new Date(task.dueDate).getTime()).toBeLessThanOrEqual(
 					new Date("2024-01-15").getTime(),
@@ -141,6 +143,7 @@ describe("Task API - Filtering", () => {
 
 			expect(response.body.data.tasks).toHaveLength(2);
 			expect(response.body.data.total).toBe(2);
+			// biome-ignore lint/suspicious/noExplicitAny: test response body is untyped
 			response.body.data.tasks.forEach((task: any) => {
 				expect(task.status).toBe(TaskStatus.PENDING);
 				expect(new Date(task.dueDate).getTime()).toBeLessThanOrEqual(

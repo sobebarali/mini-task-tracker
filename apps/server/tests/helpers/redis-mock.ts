@@ -29,6 +29,7 @@ export const mockRedis = {
 
 	async del(...keys: string[]): Promise<number> {
 		return new Promise((resolve, reject) => {
+			// biome-ignore lint/suspicious/noExplicitAny: redis-mock types are incomplete
 			mockRedisClient.del(keys as any, (err: Error | null, reply: number) => {
 				if (err) reject(err);
 				else resolve(reply);
@@ -38,10 +39,14 @@ export const mockRedis = {
 
 	async keys(pattern: string): Promise<string[]> {
 		return new Promise((resolve, reject) => {
-			mockRedisClient.keys(pattern, (err: Error | null, reply: string[]) => {
-				if (err) reject(err);
-				else resolve(reply);
-			});
+			// biome-ignore lint/suspicious/noExplicitAny: redis-mock types are incomplete
+			(mockRedisClient as any).keys(
+				pattern,
+				(err: Error | null, reply: string[]) => {
+					if (err) reject(err);
+					else resolve(reply);
+				},
+			);
 		});
 	},
 

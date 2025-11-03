@@ -29,5 +29,5 @@ export default {
 	coverageDirectory: "coverage",
 	testTimeout: 30000,
 	// Run tests sequentially when using shared MongoDB (Docker)
-	maxWorkers: process.env.DATABASE_URL ? 1 : undefined,
+	maxWorkers: process.env.DATABASE_URL ? 1 : "50%",
 };

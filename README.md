@@ -24,9 +24,11 @@ A REST API task management system built with Node.js, Express, TypeScript, Mongo
 - ✅ Password hashing with bcrypt
 - ✅ Redis caching for GET requests with automatic invalidation
 - ✅ Input validation with Zod schemas
-- ✅ Comprehensive test suite (49 tests, 70%+ coverage)
+- ✅ Comprehensive test suite (78 tests, 92% statement coverage)
+- ✅ Docker test infrastructure with Alpine Linux support
 - ✅ Request ID tracing for debugging
 - ✅ User-specific task management with authorization
+- ✅ Task filtering by status and due date
 - ✅ Docker Compose for MongoDB and Redis
 - ✅ Type-safe database operations with Mongoose
 
@@ -147,9 +149,19 @@ mini-task-tracker/
 │       │   │       └── tasks.routes.ts # Route definitions
 │       │   ├── middleware/        # Auth middleware
 │       │   └── index.ts           # App entry point
-│       └── tests/                 # Jest tests (49 tests)
+│       └── tests/                 # Jest tests (78 tests)
 │           ├── auth/
-│           └── tasks/
+│           │   ├── signup.test.ts
+│           │   └── login.test.ts
+│           ├── tasks/
+│           │   ├── create-task.test.ts
+│           │   ├── delete-task.test.ts
+│           │   ├── get-tasks.test.ts
+│           │   ├── task-filtering.test.ts  # Filtering tests
+│           │   └── update-task.test.ts
+│           └── helpers/
+│               ├── setup.ts       # Dual-mode DB setup
+│               └── redis-mock.ts  # Redis mock utilities
 └── packages/
     └── db/                        # Database package
         ├── src/
@@ -167,7 +179,9 @@ mini-task-tracker/
 - `POST /api/auth/login` - Login and receive JWT token
 
 ### Tasks (Requires Authentication)
-- `GET /api/tasks` - List all tasks (Redis cached)
+- `GET /api/tasks` - List all tasks (Redis cached, supports filtering)
+  - Query params: `?status=pending|completed` (optional)
+  - Query params: `?dueDate=YYYY-MM-DD` (optional, filters tasks due on or before this date)
 - `POST /api/tasks` - Create new task
 - `PUT /api/tasks/:id` - Update task
 - `DELETE /api/tasks/:id` - Delete task
@@ -187,9 +201,14 @@ docker-compose ps                     # Check service status
 docker-compose restart api            # Restart API service
 
 # Development mode (with hot reload)
-docker-compose -f docker-compose.dev.yml up        # Start in dev mode
-docker-compose -f docker-compose.dev.yml down      # Stop dev services
-docker-compose -f docker-compose.dev.yml logs -f   # View all logs
+docker-compose --profile dev up              # Start in dev mode
+docker-compose --profile dev down            # Stop dev services
+docker-compose --profile dev logs -f         # View all logs
+
+# Test mode (Alpine Linux environment)
+docker-compose --profile test build test                           # Build test image
+docker-compose --profile test up test --abort-on-container-exit    # Run all tests
+docker-compose --profile test logs test                            # View test logs
 
 # Rebuild after code changes
 docker-compose build --no-cache api   # Rebuild API image
@@ -217,6 +236,10 @@ npm run db:down          # Stop and remove containers
 npm test                 # Run all tests
 npm run test:coverage    # Run tests with coverage report
 npm run test:watch       # Run tests in watch mode
+
+# Docker test environment (Alpine Linux compatible)
+docker-compose --profile test build test      # Build test image
+docker-compose --profile test up test --abort-on-container-exit  # Run tests in Docker
 ```
 
 ### Production
@@ -227,6 +250,64 @@ npm start                # Start production server (local)
 # Or use Docker:
 docker-compose up -d     # Start production stack with Docker
 ```
+
+## Task Filtering
+
+The API supports filtering tasks by status and due date:
+
+### Filter by Status
+```bash
+# Get only pending tasks
+GET /api/tasks?status=pending
+
+# Get only completed tasks
+GET /api/tasks?status=completed
+```
+
+### Filter by Due Date
+```bash
+# Get tasks due on or before a specific date
+GET /api/tasks?dueDate=2025-12-31
+
+# Returns tasks where dueDate <= specified date OR tasks with no dueDate
+```
+
+### Combined Filters
+```bash
+# Get pending tasks due on or before a date
+GET /api/tasks?status=pending&dueDate=2025-12-31
+```
+
+**Response Format:**
+```json
+{
+  "data": {
+    "tasks": [
+      {
+        "id": "...",
+        "title": "Task title",
+        "description": "Task description",
+        "status": "pending",
+        "dueDate": "2025-12-31T00:00:00.000Z",
+        "owner": "userId",
+        "createdAt": "2025-11-03T10:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "filters": {
+      "status": "pending",
+      "dueDate": "2025-12-31"
+    }
+  },
+  "error": null
+}
+```
+
+**Caching:**
+- Filtered queries are cached separately by user and filter combination
+- Cache keys: `tasks:{userId}:{status}:{dueDate}`
+- 5-minute TTL per cached result
+- Automatic invalidation on task create/update/delete
 
 ## Architecture
 
@@ -255,17 +336,39 @@ Controller → Service → Repository → Database/Redis
 
 The project follows **Test-Driven Development (TDD)** with comprehensive test coverage:
 
-- **49 tests** covering all features
-- **70%+ code coverage** across the codebase
+- **78 tests** covering all features
+- **92% statement coverage**, 70% branch coverage, 100% function coverage
 - Integration tests for full request/response cycles
 - Unit tests for middleware and validation
-- Mocked MongoDB (mongodb-memory-server) and Redis
+- Dual-mode test infrastructure:
+  - **Local**: Uses `mongodb-memory-server` for isolated, parallel tests
+  - **Docker**: Uses real MongoDB container for production-like testing
 
-Run tests:
+### Running Tests
+
+**Local (Fast, Parallel):**
 ```bash
 npm test                 # Run all tests
 npm run test:coverage    # View coverage report
+npm run test:watch       # Watch mode for development
 ```
+
+**Docker (Production-like, Sequential):**
+```bash
+# Build test environment
+docker-compose --profile test build test
+
+# Run tests in Alpine Linux container
+docker-compose --profile test up test --abort-on-container-exit
+```
+
+### Test Infrastructure
+
+The test setup automatically detects the environment:
+- **Local development**: Uses `mongodb-memory-server` for fast, isolated tests
+- **Docker containers**: Uses real MongoDB for Alpine Linux compatibility
+- Sequential execution in Docker prevents race conditions with shared database
+- All 78 tests pass in both environments
 
 ## Security Features
 
@@ -316,28 +419,36 @@ The application uses a multi-container Docker setup:
 
 ### Docker Files
 
-- `Dockerfile` - Multi-stage production build (optimized)
+- `Dockerfile` - Multi-stage production build (Alpine Linux, optimized)
 - `Dockerfile.dev` - Development build with hot reload
-- `docker-compose.yml` - Production stack configuration
-- `docker-compose.dev.yml` - Development stack with volume mounts
+- `Dockerfile.test` - Test environment with Alpine Linux compatibility
+- `docker-compose.yml` - Production and test stack configuration
 - `.dockerignore` - Excludes unnecessary files from build
 
 ### Production vs Development
 
 **Production (`docker-compose.yml`):**
 - Optimized multi-stage build
-- Minimal image size
+- Alpine Linux base for minimal image size
+- bcrypt compilation fixes for Alpine
 - No source code mounting
 - Non-root user for security
 - Health checks enabled
 - Automatic restarts
 
-**Development (`docker-compose.dev.yml`):**
+**Development (`docker-compose.yml` with `--profile dev`):**
 - Source code mounted as volumes
 - Hot reload with `tsx watch`
 - All dev dependencies included
 - Faster iteration cycle
 - Logs visible in terminal
+
+**Test Environment (`docker-compose.yml` with `--profile test`):**
+- Alpine Linux compatible test setup
+- Real MongoDB container (not mongodb-memory-server)
+- Sequential test execution to prevent race conditions
+- All 78 tests pass in containerized environment
+- Simulates production-like conditions
 
 ## Contributing
 
