@@ -5,7 +5,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import authRoutes from "./apis/auth/auth.routes";
-import taskRoutes from "./apis/tasks/tasks.routes";
+import taskRoutes from "./apis/task/task.routes";
 
 const app = express();
 

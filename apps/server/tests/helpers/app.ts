@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
 import authRoutes from "../../src/apis/auth/auth.routes";
-import taskRoutes from "../../src/apis/tasks/tasks.routes";
+import taskRoutes from "../../src/apis/task/task.routes";
 
 // Create test app without database connection
 export function createTestApp() {

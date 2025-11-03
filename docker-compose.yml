@@ -12,7 +12,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mini-task-tracker_mongodb_data:/data/db
+      - mongodb_data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--username", "root", "--password", "password", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -21,7 +21,7 @@ services:
       start_period: 40s
     restart: unless-stopped
     networks:
-      - mini-task-tracker-network
+      - app-network
 
   # Redis Cache
   redis:
@@ -30,7 +30,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - mini-task-tracker_redis_data:/data
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -39,21 +39,20 @@ services:
       start_period: 20s
     restart: unless-stopped
     networks:
-      - mini-task-tracker-network
+      - app-network
 
-  # API Server
+  # API Server (Production)
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mini-task-tracker-api
     container_name: mini-task-tracker-api
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=mongodb://root:password@mongodb:27017/mini-task-tracker?authSource=admin
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -63,38 +62,13 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - mini-task-tracker-network
+      - app-network
     restart: unless-stopped
 
-  # Test service (run with: docker-compose --profile test up test)
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile.test
-    image: mini-task-tracker-test
-    container_name: mini-task-tracker-test
-    environment:
-      - NODE_ENV=test
-      - JWT_SECRET=${JWT_SECRET}
-      - DATABASE_URL=mongodb://root:password@mongodb:27017/mini-task-tracker-test?authSource=admin
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - mini-task-tracker-network
-    profiles:
-      - test
-
 volumes:
-  mini-task-tracker_mongodb_data:
-    driver: local
-  mini-task-tracker_redis_data:
-    driver: local
+  mongodb_data:
+  redis_data:
 
 networks:
-  mini-task-tracker-network:
+  app-network:
     driver: bridge
