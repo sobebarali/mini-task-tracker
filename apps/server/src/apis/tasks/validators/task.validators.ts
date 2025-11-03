@@ -1,6 +1,10 @@
 import { TaskStatus } from "@mini-task-tracker/db";
 import { z } from "zod";
-import type { typeCreatePayload, typeUpdatePayload } from "../types/task.types";
+import type {
+	typeCreatePayload,
+	typeGetTasksFilters,
+	typeUpdatePayload,
+} from "../types/task.types";
 
 export const createTaskSchema = z.object({
 	title: z.string().min(1).max(500),
@@ -39,6 +43,23 @@ export const validateCreatePayload = (
 	const result = createTaskSchema.safeParse(data);
 	if (result.success) {
 		return { success: true, data: result.data as typeCreatePayload };
+	}
+	return { success: false, error: result.error };
+};
+
+export const getTasksFiltersSchema = z.object({
+	status: z.nativeEnum(TaskStatus).optional(),
+	dueDate: z.string().datetime().optional(),
+});
+
+export const validateGetTasksFilters = (
+	data: unknown,
+):
+	| { success: true; data: typeGetTasksFilters }
+	| { success: false; error: z.ZodError } => {
+	const result = getTasksFiltersSchema.safeParse(data);
+	if (result.success) {
+		return { success: true, data: result.data as typeGetTasksFilters };
 	}
 	return { success: false, error: result.error };
 };

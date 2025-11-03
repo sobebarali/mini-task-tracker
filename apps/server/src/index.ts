@@ -67,7 +67,6 @@ app.get("/", (_req, res) => {
 	res.status(200).send("OK");
 });
 
-
 // Apply rate limiters
 app.use("/api/auth", authLimiter); // Strict rate limiting for auth
 app.use("/api/", generalLimiter); // General rate limiting for all other API routes

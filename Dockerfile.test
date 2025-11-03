@@ -1,0 +1,32 @@
+# Dockerfile for running tests in Docker
+FROM node:20-alpine
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++
+
+# Set HUSKY=0 to skip husky git hooks
+ENV HUSKY=0
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json turbo.json ./
+COPY tsconfig*.json ./
+
+# Copy workspace package.json files
+COPY apps/server/package.json ./apps/server/
+COPY packages/db/package.json ./packages/db/
+
+# Install ALL dependencies (including dev dependencies for testing)
+RUN npm ci
+
+# Copy source code
+COPY apps/ ./apps/
+COPY packages/ ./packages/
+
+# Copy test files
+COPY apps/server/tests/ ./apps/server/tests/
+COPY apps/server/jest.config.js ./apps/server/
+
+# Default command runs tests
+CMD ["npm", "test"]

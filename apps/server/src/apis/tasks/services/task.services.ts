@@ -3,6 +3,7 @@ import type {
 	typeCreatePayload,
 	typeCreateResult,
 	typeDeleteResult,
+	typeGetTasksFilters,
 	typeGetTasksResult,
 	typeUpdatePayload,
 	typeUpdateResult,
@@ -36,10 +37,14 @@ export const createTaskService = async (
 export const getTasksService = async (
 	userId: string,
 	requestId: string,
+	filters: typeGetTasksFilters = {},
 ): Promise<typeGetTasksResult> => {
 	try {
-		console.log(`[${requestId}] Get tasks service started`);
-		const result = await taskRepo.getTasks(userId);
+		console.log(
+			`[${requestId}] Get tasks service started with filters:`,
+			filters,
+		);
+		const result = await taskRepo.getTasks(userId, filters);
 		console.log(`[${requestId}] Get tasks service completed`);
 		return result;
 	} catch (error) {

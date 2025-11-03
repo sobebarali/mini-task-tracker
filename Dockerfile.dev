@@ -3,17 +3,16 @@ FROM node:20-alpine AS development
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY turbo.json ./
+# Copy root package files and lockfile
+COPY package.json package-lock.json turbo.json ./
 COPY tsconfig*.json ./
 
-# Copy workspace packages
+# Copy workspace package.json files
 COPY apps/server/package.json ./apps/server/
 COPY packages/db/package.json ./packages/db/
 
-# Install all dependencies (including dev dependencies)
-RUN npm ci
+# Install all dependencies (including dev dependencies, ignore git hooks)
+RUN npm ci --ignore-scripts
 
 # Copy source code
 COPY apps/ ./apps/

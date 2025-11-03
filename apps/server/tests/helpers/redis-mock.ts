@@ -27,9 +27,18 @@ export const mockRedis = {
 		});
 	},
 
-	async del(key: string): Promise<number> {
+	async del(...keys: string[]): Promise<number> {
 		return new Promise((resolve, reject) => {
-			mockRedisClient.del(key, (err: Error | null, reply: number) => {
+			mockRedisClient.del(keys as any, (err: Error | null, reply: number) => {
+				if (err) reject(err);
+				else resolve(reply);
+			});
+		});
+	},
+
+	async keys(pattern: string): Promise<string[]> {
+		return new Promise((resolve, reject) => {
+			mockRedisClient.keys(pattern, (err: Error | null, reply: string[]) => {
 				if (err) reject(err);
 				else resolve(reply);
 			});

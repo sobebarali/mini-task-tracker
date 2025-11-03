@@ -5,18 +5,20 @@ FROM node:20-alpine AS builder
 # Install build dependencies
 RUN apk add --no-cache python3 make g++
 
+# Set HUSKY=0 to skip husky git hooks in Docker
+ENV HUSKY=0
+
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY turbo.json ./
+# Copy root package files and lockfile
+COPY package.json package-lock.json turbo.json ./
 COPY tsconfig*.json ./
 
-# Copy workspace packages
+# Copy workspace package.json files
 COPY apps/server/package.json ./apps/server/
 COPY packages/db/package.json ./packages/db/
 
-# Install dependencies
+# Install all dependencies (including dev dependencies)
 RUN npm ci
 
 # Copy source code
@@ -26,21 +28,41 @@ COPY packages/ ./packages/
 # Build the application
 RUN npm run build
 
-# Stage 2: Production
+# Stage 2: Production dependencies
+FROM node:20-alpine AS deps
+
+# Install build dependencies needed for bcrypt
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+# Copy root package files and lockfile
+COPY package.json package-lock.json turbo.json ./
+
+# Copy workspace package.json files
+COPY apps/server/package.json ./apps/server/
+COPY packages/db/package.json ./packages/db/
+
+# Install only production dependencies (ignore all scripts including husky)
+RUN npm ci --omit=dev --ignore-scripts
+
+# Rebuild bcrypt native bindings for Alpine Linux
+RUN npm rebuild bcrypt
+
+# Stage 3: Production runtime
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY turbo.json ./
+# Copy root package files
+COPY package.json package-lock.json turbo.json ./
 
-# Copy workspace packages
+# Copy workspace package.json files
 COPY apps/server/package.json ./apps/server/
 COPY packages/db/package.json ./packages/db/
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Copy all node_modules from deps stage (npm workspaces hoists to root)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy built application from builder stage
 COPY --from=builder /app/apps/server/dist ./apps/server/dist

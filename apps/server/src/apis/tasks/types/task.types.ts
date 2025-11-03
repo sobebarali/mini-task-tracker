@@ -21,6 +21,11 @@ export type typeTaskData = {
 export type typeCreateResultData = typeTaskData;
 
 // Get Tasks
+export type typeGetTasksFilters = {
+	status?: TaskStatus;
+	dueDate?: string;
+};
+
 export type typeGetTasksResultData = {
 	tasks: typeTaskData[];
 	total: number;

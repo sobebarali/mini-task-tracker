@@ -4,8 +4,30 @@ import type { AuthRequest } from "../../../middleware/auth.middleware";
 import * as taskService from "../services/task.services";
 import {
 	validateCreatePayload,
+	validateGetTasksFilters,
 	validateUpdatePayload,
 } from "../validators/task.validators";
+
+const validateAuthUser = (
+	req: AuthRequest,
+	res: Response,
+	requestId: string,
+): string | null => {
+	const userId = req.user?.userId;
+	if (!userId) {
+		res.status(401).json({
+			data: null,
+			error: {
+				code: "UNAUTHORIZED",
+				message: "User not authenticated",
+				statusCode: 401,
+				requestId,
+			},
+		});
+		return null;
+	}
+	return userId;
+};
 
 export const createTask = async (
 	req: AuthRequest,
@@ -14,19 +36,8 @@ export const createTask = async (
 	const requestId = randomBytes(16).toString("hex");
 
 	try {
-		const userId = req.user?.userId;
-		if (!userId) {
-			res.status(401).json({
-				data: null,
-				error: {
-					code: "UNAUTHORIZED",
-					message: "User not authenticated",
-					statusCode: 401,
-					requestId,
-				},
-			});
-			return;
-		}
+		const userId = validateAuthUser(req, res, requestId);
+		if (!userId) return;
 
 		const validation = validateCreatePayload(req.body);
 		if (!validation.success) {
@@ -69,21 +80,29 @@ export const getTasks = async (
 	const requestId = randomBytes(16).toString("hex");
 
 	try {
-		const userId = req.user?.userId;
-		if (!userId) {
-			res.status(401).json({
+		const userId = validateAuthUser(req, res, requestId);
+		if (!userId) return;
+
+		// Validate query parameters
+		const validation = validateGetTasksFilters(req.query);
+		if (!validation.success) {
+			res.status(400).json({
 				data: null,
 				error: {
-					code: "UNAUTHORIZED",
-					message: "User not authenticated",
-					statusCode: 401,
+					code: "VALIDATION_ERROR",
+					message: validation.error.message,
+					statusCode: 400,
 					requestId,
 				},
 			});
 			return;
 		}
 
-		const result = await taskService.getTasksService(userId, requestId);
+		const result = await taskService.getTasksService(
+			userId,
+			requestId,
+			validation.data,
+		);
 		const statusCode = result.error ? result.error.statusCode || 500 : 200;
 		res.status(statusCode).json(result);
 	} catch (_error) {
@@ -106,19 +125,8 @@ export const updateTask = async (
 	const requestId = randomBytes(16).toString("hex");
 
 	try {
-		const userId = req.user?.userId;
-		if (!userId) {
-			res.status(401).json({
-				data: null,
-				error: {
-					code: "UNAUTHORIZED",
-					message: "User not authenticated",
-					statusCode: 401,
-					requestId,
-				},
-			});
-			return;
-		}
+		const userId = validateAuthUser(req, res, requestId);
+		if (!userId) return;
 
 		const taskId = req.params.id;
 		if (!taskId) {
@@ -176,19 +184,8 @@ export const deleteTask = async (
 	const requestId = randomBytes(16).toString("hex");
 
 	try {
-		const userId = req.user?.userId;
-		if (!userId) {
-			res.status(401).json({
-				data: null,
-				error: {
-					code: "UNAUTHORIZED",
-					message: "User not authenticated",
-					statusCode: 401,
-					requestId,
-				},
-			});
-			return;
-		}
+		const userId = validateAuthUser(req, res, requestId);
+		if (!userId) return;
 
 		const taskId = req.params.id;
 		if (!taskId) {

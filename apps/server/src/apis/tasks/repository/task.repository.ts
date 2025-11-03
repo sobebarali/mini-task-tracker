@@ -3,6 +3,7 @@ import type {
 	typeCreatePayload,
 	typeCreateResult,
 	typeDeleteResult,
+	typeGetTasksFilters,
 	typeGetTasksResult,
 	typeTaskData,
 	typeUpdatePayload,
@@ -23,10 +24,34 @@ const taskToPlain = (task: ITask): typeTaskData => ({
 	createdAt: task.createdAt.toISOString(),
 });
 
-// Helper to invalidate cache for a user
+// Helper to generate cache key with filters
+const generateCacheKey = (
+	userId: string,
+	filters: typeGetTasksFilters = {},
+): string => {
+	// For backward compatibility, if no filters, use the old format
+	if (Object.keys(filters).length === 0) {
+		return `${CACHE_KEY_PREFIX}${userId}`;
+	}
+
+	const filterString = Object.keys(filters)
+		.sort()
+		.map((key) => `${key}:${filters[key as keyof typeGetTasksFilters]}`)
+		.join("|");
+	return `${CACHE_KEY_PREFIX}${userId}:${filterString}`;
+};
+
+// Helper to invalidate cache for a user (all filter combinations)
 const invalidateCache = async (userId: string): Promise<void> => {
-	const cacheKey = `${CACHE_KEY_PREFIX}${userId}`;
-	await redis.del(cacheKey);
+	// Delete the old format key (no filters)
+	await redis.del(`${CACHE_KEY_PREFIX}${userId}`);
+
+	// Get all keys matching the new pattern for this user
+	const pattern = `${CACHE_KEY_PREFIX}${userId}:*`;
+	const keys = await redis.keys(pattern);
+	if (keys.length > 0) {
+		await redis.del(...keys);
+	}
 };
 
 // Create Task
@@ -55,22 +80,38 @@ export const createTask = async (
 	}
 };
 
-// Get Tasks (with Redis caching)
-export const getTasks = async (userId: string): Promise<typeGetTasksResult> => {
+// Get Tasks (with Redis caching and filtering)
+export const getTasks = async (
+	userId: string,
+	filters: typeGetTasksFilters = {},
+): Promise<typeGetTasksResult> => {
 	try {
-		const cacheKey = `${CACHE_KEY_PREFIX}${userId}`;
+		const cacheKey = generateCacheKey(userId, filters);
 
 		// Try to get from cache
 		const cachedData = await redis.get(cacheKey);
 		if (cachedData) {
-			console.log(`Cache hit for user ${userId}`);
+			console.log(`Cache hit for user ${userId} with filters:`, filters);
 			return JSON.parse(cachedData);
 		}
 
-		console.log(`Cache miss for user ${userId}`);
+		console.log(`Cache miss for user ${userId} with filters:`, filters);
+
+		// Build query
+		const query: Record<string, unknown> = { owner: userId };
+
+		if (filters.status) {
+			query.status = filters.status;
+		}
+
+		if (filters.dueDate) {
+			// Filter tasks due on or before the specified date
+			const dueDate = new Date(filters.dueDate);
+			query.dueDate = { $lte: dueDate };
+		}
 
 		// Get from database
-		const tasks = await Task.find({ owner: userId }).sort({ createdAt: -1 });
+		const tasks = await Task.find(query).sort({ createdAt: -1 });
 
 		const result: typeGetTasksResult = {
 			data: {
