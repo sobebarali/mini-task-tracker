@@ -34,10 +34,66 @@ A REST API task management system built with Node.js, Express, TypeScript, Mongo
 
 ### Prerequisites
 
-- Node.js (v18+)
-- Docker and Docker Compose (for MongoDB and Redis)
+- **Docker and Docker Compose** (recommended)
+- OR Node.js (v18+) for local development
 
-### Installation
+### Quick Start with Docker (Recommended)
+
+The easiest way to run the entire application stack (API + MongoDB + Redis):
+
+1. **Clone the repository:**
+```bash
+git clone <repository-url>
+cd mini-task-tracker
+```
+
+2. **Set up environment variables:**
+
+Copy the example environment file:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set your JWT secret (min 32 characters):
+```env
+JWT_SECRET=your-super-secret-jwt-key-min-32-characters-change-this
+```
+
+3. **Start all services with Docker Compose:**
+
+**Production mode:**
+```bash
+docker-compose up -d
+```
+
+**Development mode (with hot reload):**
+```bash
+docker-compose -f docker-compose.dev.yml up
+```
+
+4. **Verify the services are running:**
+```bash
+# Check service status
+docker-compose ps
+
+# View logs
+docker-compose logs -f api
+```
+
+The API is now running at **http://localhost:3000**
+
+5. **Stop the services:**
+```bash
+# Stop containers
+docker-compose down
+
+# Stop and remove volumes (clears all data)
+docker-compose down -v
+```
+
+### Local Development (Without Docker)
+
+If you prefer to run the services locally:
 
 1. **Install dependencies:**
 ```bash
@@ -50,7 +106,7 @@ Create `apps/server/.env`:
 ```env
 NODE_ENV=development
 PORT=3000
-MONGODB_URI=mongodb://localhost:27017/mini-task-tracker
+DATABASE_URL=mongodb://root:password@localhost:27017/mini-task-tracker?authSource=admin
 REDIS_HOST=localhost
 REDIS_PORT=6379
 JWT_SECRET=your-super-secret-jwt-key-min-32-characters
@@ -120,7 +176,27 @@ mini-task-tracker/
 
 ## Available Scripts
 
-### Development
+### Docker Commands
+```bash
+# Production mode (optimized build)
+docker-compose up -d                  # Start all services in background
+docker-compose down                   # Stop all services
+docker-compose down -v                # Stop and remove volumes (clears data)
+docker-compose logs -f api            # View API logs
+docker-compose ps                     # Check service status
+docker-compose restart api            # Restart API service
+
+# Development mode (with hot reload)
+docker-compose -f docker-compose.dev.yml up        # Start in dev mode
+docker-compose -f docker-compose.dev.yml down      # Stop dev services
+docker-compose -f docker-compose.dev.yml logs -f   # View all logs
+
+# Rebuild after code changes
+docker-compose build --no-cache api   # Rebuild API image
+docker-compose up -d --build          # Rebuild and restart
+```
+
+### Development (Local)
 ```bash
 npm run dev              # Start dev server (hot reload)
 npm run dev:server       # Start only server
@@ -128,7 +204,7 @@ npm run check-types      # TypeScript type checking
 npm run check            # Run Biome linting/formatting
 ```
 
-### Database
+### Database (Local - Docker containers only)
 ```bash
 npm run db:start         # Start MongoDB + Redis (detached)
 npm run db:watch         # Start MongoDB + Redis (logs visible)
@@ -146,7 +222,10 @@ npm run test:watch       # Run tests in watch mode
 ### Production
 ```bash
 npm run build            # Build for production
-npm start                # Start production server
+npm start                # Start production server (local)
+
+# Or use Docker:
+docker-compose up -d     # Start production stack with Docker
 ```
 
 ## Architecture
@@ -202,14 +281,63 @@ npm run test:coverage    # View coverage report
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment mode | `development` |
-| `PORT` | Server port | `3000` |
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/mini-task-tracker` |
-| `REDIS_HOST` | Redis host | `localhost` |
-| `REDIS_PORT` | Redis port | `6379` |
-| `JWT_SECRET` | Secret key for JWT (min 32 chars) | **Required** |
+| Variable | Description | Default | Docker |
+|----------|-------------|---------|--------|
+| `NODE_ENV` | Environment mode | `development` | ✅ |
+| `PORT` | Server port | `3000` | ✅ |
+| `DATABASE_URL` | MongoDB connection string | `mongodb://root:password@localhost:27017/mini-task-tracker?authSource=admin` | Auto-configured |
+| `REDIS_HOST` | Redis host | `localhost` | Auto-configured to `redis` |
+| `REDIS_PORT` | Redis port | `6379` | ✅ |
+| `JWT_SECRET` | Secret key for JWT (min 32 chars) | **Required** | ✅ Required in `.env` |
+| `JWT_EXPIRES_IN` | JWT token expiration | `7d` | ✅ |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins | `*` | ✅ |
+
+**Note:** When using Docker Compose, the `DATABASE_URL` and `REDIS_HOST` are automatically configured to use Docker service names (`mongodb` and `redis`). You only need to set `JWT_SECRET` and optionally `PORT` and `CORS_ALLOWED_ORIGINS` in your `.env` file.
+
+## Docker Architecture
+
+The application uses a multi-container Docker setup:
+
+```
+┌─────────────────────────────────────────┐
+│         Docker Network                  │
+│                                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────┐ │
+│  │   API    │  │ MongoDB  │  │ Redis│ │
+│  │  Server  │◄─┤ Database │  │Cache │ │
+│  │  :3000   │  │  :27017  │  │:6379 │ │
+│  └────┬─────┘  └──────────┘  └──────┘ │
+│       │                                │
+└───────┼────────────────────────────────┘
+        │
+        ▼
+   Host :3000
+```
+
+### Docker Files
+
+- `Dockerfile` - Multi-stage production build (optimized)
+- `Dockerfile.dev` - Development build with hot reload
+- `docker-compose.yml` - Production stack configuration
+- `docker-compose.dev.yml` - Development stack with volume mounts
+- `.dockerignore` - Excludes unnecessary files from build
+
+### Production vs Development
+
+**Production (`docker-compose.yml`):**
+- Optimized multi-stage build
+- Minimal image size
+- No source code mounting
+- Non-root user for security
+- Health checks enabled
+- Automatic restarts
+
+**Development (`docker-compose.dev.yml`):**
+- Source code mounted as volumes
+- Hot reload with `tsx watch`
+- All dev dependencies included
+- Faster iteration cycle
+- Logs visible in terminal
 
 ## Contributing
 

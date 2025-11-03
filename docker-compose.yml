@@ -1,0 +1,85 @@
+name: mini-task-tracker
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: mini-task-tracker-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: mini-task-tracker
+    ports:
+      - "27017:27017"
+    volumes:
+      - mini-task-tracker_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--username", "root", "--password", "password", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - mini-task-tracker-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: mini-task-tracker-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - mini-task-tracker_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - mini-task-tracker-network
+
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: mini-task-tracker-api
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: mongodb://root:password@mongodb:27017/mini-task-tracker?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - mini-task-tracker-network
+
+volumes:
+  mini-task-tracker_mongodb_data:
+    driver: local
+  mini-task-tracker_redis_data:
+    driver: local
+
+networks:
+  mini-task-tracker-network:
+    driver: bridge
