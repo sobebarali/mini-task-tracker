@@ -1,0 +1,39 @@
+name: mini-task-tracker
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mini-task-tracker-mongodb
+    command: --bind_ip_all
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: mini-task-tracker
+    ports:
+      - "27017:27017"
+    volumes:
+      - mini-task-tracker_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: mini-task-tracker-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - mini-task-tracker_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mini-task-tracker_mongodb_data:
+  mini-task-tracker_redis_data:
