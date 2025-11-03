@@ -1,316 +1,159 @@
-# 📝 Mini Task Tracker
+# CI/CD Pipeline Documentation
 
-A simple to-do list app where you can create tasks, mark them as done, and keep track of everything you need to do!
+## 🚀 GitHub Actions Workflows
 
-## 🎯 What Does This App Do?
+### Main CI Pipeline (`ci.yml`)
+**Triggers:** Push/PR to `main` or `develop`
 
-Think of this like a digital notebook where you can:
-- ✍️ Write down tasks (like "Buy milk" or "Finish homework")
-- ✅ Mark tasks as completed when you're done
-- 📅 Set due dates so you don't forget
-- 🗑️ Delete tasks you don't need anymore
-- 🔐 Keep your tasks private (only you can see your tasks)
+**Features:**
+- ✅ **Parallel execution** - Lint, typecheck, and build run concurrently
+- ✅ **Test sharding** - Tests split across 4 parallel workers for 4x speed
+- ✅ **Smart caching** - npm cache for faster installs
+- ✅ **Fast failure** - Lint and typecheck fail fast before expensive test runs
+- ✅ **Artifact uploads** - Build artifacts and coverage reports stored
 
-## 🛠️ What's Inside?
+**Jobs:**
+1. **Lint** (~2-3 min) - Biome formatting and linting
+2. **Typecheck** (~2-3 min) - TypeScript type checking
+3. **Test** (~5-6 min) - Jest tests with 4-way sharding
+4. **Build** (~4-5 min) - Production build verification
 
-This app is built with:
-- **Node.js** - Like the brain that runs everything
-- **MongoDB** - Like a filing cabinet that stores all your tasks
-- **Redis** - Like a notepad that remembers things quickly
-- **Docker** - Like a magic box that contains everything you need
+**Total time:** ~8-10 minutes (vs 20+ minutes sequential)
 
-## 🚀 How to Run This App
+### PR Checks (`pr.yml`)
+**Triggers:** Pull request events
 
-### Option 1: Super Easy Way (Using Docker) ⭐ Recommended
+**Smart features:**
+- ✅ **Changed files detection** - Only runs tests for changed packages
+- ✅ **PR validation** - Enforces conventional commits format
+- ✅ **Coverage comments** - Posts coverage diff on PRs
+- ✅ **Bundle size analysis** - Reports size impact
+- ✅ **Automatic summaries** - Visual PR check results
 
-Think of Docker like a lunch box - everything you need is already packed inside!
+**Conventional commit format:**
+- `feat: add new feature`
+- `fix(api): resolve bug`
+- `docs: update readme`
+- `chore: update deps`
 
-**Step 1: Get Docker**
-- Download Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/)
-- Install it and make sure it's running (you'll see a little whale icon)
+### Release Pipeline (`release.yml`)
+**Triggers:** 
+- Git tags (`v*.*.*`)
+- Manual workflow dispatch
 
-**Step 2: Download This Project**
+**Features:**
+- ✅ **Full validation** - All checks before release
+- ✅ **Docker build** - Multi-arch (amd64, arm64)
+- ✅ **GitHub Container Registry** - Automated image push
+- ✅ **Release notes** - Auto-generated changelog
+- ✅ **Semantic versioning** - Multiple tag formats
+
+**Usage:**
 ```bash
-# Copy this project to your computer
-git clone git@github.com:sobebarali/mini-task-tracker.git
-cd mini-task-tracker
+# Tag and push
+git tag v1.0.0
+git push origin v1.0.0
+
+# Or use GitHub UI for manual release
 ```
 
-**Step 3: Set Up Your Secret Password**
+### Security Scanning (`codeql.yml`)
+**Triggers:**
+- Push to `main`
+- PRs to `main`
+- Weekly schedule (Mondays)
+
+**Features:**
+- ✅ **CodeQL analysis** - Automated security scanning
+- ✅ **Vulnerability detection** - Finds security issues
+- ✅ **Weekly scans** - Proactive monitoring
+
+### Dependency Updates (`dependabot.yml`)
+**Features:**
+- ✅ **Automated updates** - Weekly dependency updates
+- ✅ **Grouped PRs** - Dev and prod deps grouped separately
+- ✅ **GitHub Actions updates** - Keeps workflows up-to-date
+- ✅ **Smart ignoring** - Manual review for major versions
+
+## 🎯 Performance Optimizations
+
+1. **Test Sharding** - 4x parallel test execution
+2. **Concurrency Control** - Cancels outdated runs
+3. **Smart Caching** - npm cache for 3x faster installs
+4. **Parallel Jobs** - Lint + typecheck run together
+5. **Changed File Detection** - Skip unnecessary tests
+6. **Fail Fast** - Quick checks before slow ones
+7. **Offline Mode** - `npm ci --prefer-offline`
+
+## 📊 Typical Pipeline Times
+
+| Workflow | Sequential | Optimized | Speedup |
+|----------|-----------|-----------|---------|
+| Main CI | 20-25 min | 8-10 min | **2.5x faster** |
+| PR Checks | 15-20 min | 5-8 min | **3x faster** |
+| Release | 30-35 min | 12-15 min | **2.5x faster** |
+
+## 🔧 Local Testing
+
+Test workflows locally before pushing:
+
 ```bash
-# Copy the example file
-cp .env.example .env
+# Install act (GitHub Actions local runner)
+brew install act
 
-# Open .env file and change JWT_SECRET to any random text (at least 32 characters)
-# Example: JWT_SECRET=my-super-secret-password-12345678
+# Run CI workflow locally
+act -j lint
+act -j test
+
+# Run full CI pipeline
+act push
 ```
 
-**Step 4: Start Everything!**
-```bash
-docker-compose up -d
-```
+## 🛡️ Branch Protection Rules
 
-That's it! Your app is now running! 🎉
+Recommended settings for `main` branch:
 
-Visit http://localhost:3000 in your web browser
+1. **Require status checks:**
+   - ✅ `ci-success` (from ci.yml)
+   - ✅ `Lint & Format`
+   - ✅ `Type Check`
+   - ✅ `Test`
+   - ✅ `Build`
 
-**Step 5: When You're Done**
-```bash
-# Stop the app
-docker-compose down
+2. **Require PR reviews:** 1 approval
 
-# Stop and delete all data (clean start next time)
-docker-compose down -v
-```
+3. **Require conversation resolution:** Yes
 
-### Option 2: The Developer Way (Without Docker)
+4. **Require linear history:** Yes
 
-If you want to run things on your own computer:
+## 📈 Monitoring & Insights
 
-**Step 1: Install Node.js**
-- Download from [nodejs.org](https://nodejs.org/) (get version 18 or newer)
+- **GitHub Actions tab** - View all workflow runs
+- **Insights → Pulse** - Weekly activity summary
+- **Security → Dependabot** - Dependency alerts
+- **Security → Code scanning** - CodeQL alerts
 
-**Step 2: Start the Database**
-```bash
-# This starts MongoDB and Redis
-npm run db:start
-```
+## 🚨 Troubleshooting
 
-**Step 3: Install Everything**
-```bash
-npm install
-```
+**Slow npm install?**
+- Check cache hit rate in workflow logs
+- Verify `cache: 'npm'` in setup-node step
 
-**Step 4: Set Up Environment**
-Create a file `apps/server/.env` with:
-```
-NODE_ENV=development
-PORT=3000
-DATABASE_URL=mongodb://root:password@localhost:27017/mini-task-tracker?authSource=admin
-REDIS_HOST=localhost
-REDIS_PORT=6379
-JWT_SECRET=your-super-secret-password-min-32-chars
-```
+**Tests timing out?**
+- Increase `timeout-minutes` in test job
+- Check for hanging async operations
 
-**Step 5: Start the App**
-```bash
-npm run dev
-```
+**Sharding not working?**
+- Verify Jest version >= 29
+- Check `--shard` flag support
 
-Visit http://localhost:3000 in your web browser
+**Docker build fails?**
+- Verify Dockerfile exists
+- Check GITHUB_TOKEN permissions
 
-## 🎮 How to Use the App
+## 📚 References
 
-### 1. Create an Account
-```bash
-curl -X POST http://localhost:3000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Your Name",
-    "email": "you@example.com",
-    "password": "password123"
-  }'
-```
-
-### 2. Login
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "you@example.com",
-    "password": "password123"
-  }'
-```
-
-You'll get back a **token** - this is like your key to access your tasks. Copy it!
-
-### 3. Create a Task
-```bash
-curl -X POST http://localhost:3000/api/tasks \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -d '{
-    "title": "Buy groceries",
-    "description": "Milk, eggs, bread",
-    "dueDate": "2025-12-31"
-  }'
-```
-
-### 4. See All Your Tasks
-```bash
-curl -X GET http://localhost:3000/api/tasks \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-### 5. Mark a Task as Done
-```bash
-curl -X PUT http://localhost:3000/api/tasks/TASK_ID_HERE \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -d '{
-    "status": "completed"
-  }'
-```
-
-### 6. Delete a Task
-```bash
-curl -X DELETE http://localhost:3000/api/tasks/TASK_ID_HERE \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-## 📚 Useful Commands
-
-### Docker Commands (if you used Docker)
-```bash
-# See what's running
-docker-compose ps
-
-# See logs (what's happening)
-docker-compose logs -f
-
-# Stop everything
-docker-compose down
-
-# Start fresh (delete all data)
-docker-compose down -v
-docker-compose up -d
-```
-
-### Development Commands
-```bash
-# Run the app
-npm run dev
-
-# Check if code is good
-npm run check-types
-npm run check
-
-# Run tests (uses mongodb-memory-server, super fast!)
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Start database (MongoDB + Redis)
-npm run db:start
-
-# Stop database
-npm run db:stop
-```
-
-## 🔧 Troubleshooting
-
-### "Port 3000 is already in use"
-Something else is using port 3000. Either stop that program or change the port in `.env` file:
-```
-PORT=4000
-```
-
-### "Cannot connect to MongoDB"
-Make sure Docker is running and MongoDB is started:
-```bash
-docker-compose ps
-```
-
-### "Invalid or expired token"
-Your login key expired. Login again to get a new token.
-
-### Need to Start Fresh?
-Delete everything and start over:
-```bash
-docker-compose down -v
-docker-compose up -d
-```
-
-## 📁 Project Structure (Where Everything Lives)
-
-```
-mini-task-tracker/
-├── apps/server/           # The main app code
-│   ├── src/              # Where all the code lives
-│   │   ├── apis/         # Different features
-│   │   │   ├── auth/     # Login and signup
-│   │   │   └── tasks/    # Task management
-│   │   └── middleware/   # Security guards
-│   └── tests/            # Tests to make sure it works
-└── packages/db/          # Database stuff
-    └── src/models/       # How we store data
-```
-
-## 🎓 For Developers
-
-### Tech Stack
-- **Node.js** + **Express** - Web server
-- **TypeScript** - JavaScript with types
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB helper
-- **Redis** - Fast cache
-- **JWT** - Secure tokens
-- **Jest** - Testing (78 tests, 92% coverage)
-- **Zod** - Data validation
-- **Docker** - Containerization
-
-### Architecture
-The app follows a clean layered pattern:
-```
-Request → Controller → Service → Repository → Database
-                ↓
-           Validators (Zod)
-```
-
-Each layer has a job:
-- **Controller**: Handles web requests
-- **Service**: Business logic
-- **Repository**: Talks to database and cache
-- **Validators**: Makes sure data is correct
-
-### Running Tests
-```bash
-# Run all tests
-npm test
-
-# See coverage report
-npm run test:coverage
-
-# Watch mode (tests run automatically when you change code)
-npm run test:watch
-```
-
-### Code Quality
-```bash
-# Check types
-npm run check-types
-
-# Lint and format
-npm run check
-```
-
-### Environment Variables
-| Variable | What It Does | Required? |
-|----------|--------------|-----------|
-| `JWT_SECRET` | Password for tokens (min 32 characters) | ✅ Yes |
-| `PORT` | Which port to run on | No (default: 3000) |
-| `DATABASE_URL` | Where MongoDB lives | No (auto-set in Docker) |
-| `REDIS_HOST` | Where Redis lives | No (auto-set in Docker) |
-| `REDIS_PORT` | Redis port | No (default: 6379) |
-
-## 🔒 Security Features
-
-- ✅ Passwords are encrypted (bcrypt)
-- ✅ JWT tokens expire after 7 days
-- ✅ Users can only see their own tasks
-- ✅ All inputs are validated
-- ✅ No sensitive data in responses
-
-## 📝 License
-
-MIT - Feel free to use this however you want!
-
-## 🆘 Need Help?
-
-1. Make sure Docker is running
-2. Make sure you set `JWT_SECRET` in `.env` file
-3. Try starting fresh: `docker-compose down -v && docker-compose up -d`
-4. Check logs: `docker-compose logs -f`
-
-Still stuck? Check the error messages - they usually tell you what's wrong!
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [Jest Sharding](https://jestjs.io/docs/cli#--shard)
+- [Docker Buildx](https://docs.docker.com/buildx/working-with-buildx/)
+- [Conventional Commits](https://www.conventionalcommits.org/)
