@@ -1,0 +1,198 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  # Fast validation
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check PR title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?: ]]; then
+            echo "❌ PR title must follow conventional commits format"
+            echo "Examples: feat: add new feature, fix(api): resolve bug"
+            exit 1
+          fi
+          echo "✅ PR title is valid"
+
+      - name: Check branch naming
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          if [[ ! "$BRANCH" =~ ^(feature|fix|hotfix|chore|docs|refactor)/ ]]; then
+            echo "⚠️  Warning: Branch name should follow pattern: feature/*, fix/*, etc."
+          else
+            echo "✅ Branch name is valid"
+          fi
+
+  # Changed files detection for smart testing
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      db: ${{ steps.filter.outputs.db }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'apps/server/**'
+              - 'package.json'
+              - 'turbo.json'
+            db:
+              - 'packages/db/**'
+              - 'package.json'
+            docs:
+              - '**/*.md'
+              - '.ruler/**'
+
+  # Quick checks (run in parallel)
+  quick-checks:
+    name: Quick Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: changes
+    if: needs.changes.outputs.server == 'true' || needs.changes.outputs.db == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Lint & Type check (parallel)
+        run: |
+          npm run check &
+          npm run check-types &
+          wait
+
+  # Test only changed packages
+  test-changes:
+    name: Test Changed Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes, quick-checks]
+    if: needs.changes.outputs.server == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+
+      - name: Coverage comment
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        if: github.event_name == 'pull_request'
+        with:
+          lcov-file: ./apps/server/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+
+  # Size impact analysis
+  bundle-size:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Build
+        run: npm run build
+
+      - name: Analyze bundle size
+        run: |
+          echo "## 📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d "apps/server/dist" ]; then
+            SERVER_SIZE=$(du -sh apps/server/dist | cut -f1)
+            echo "- **Server bundle:** $SERVER_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -d "packages/db/dist" ]; then
+            DB_SIZE=$(du -sh packages/db/dist | cut -f1)
+            echo "- **DB package:** $DB_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # PR summary
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [validate, changes, quick-checks, test-changes]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🎯 PR Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.validate.result }}" == "success" ]]; then
+            echo "✅ **Validation:** Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Validation:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.quick-checks.result }}" == "success" ]]; then
+            echo "✅ **Lint & Type Check:** Passed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.quick-checks.result }}" == "skipped" ]]; then
+            echo "⏭️ **Lint & Type Check:** Skipped (no code changes)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Lint & Type Check:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.test-changes.result }}" == "success" ]]; then
+            echo "✅ **Tests:** Passed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.test-changes.result }}" == "skipped" ]]; then
+            echo "⏭️ **Tests:** Skipped (no code changes)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Tests:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
