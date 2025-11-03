@@ -1,0 +1,43 @@
+{
+	"name": "server",
+	"main": "src/index.ts",
+	"type": "module",
+	"scripts": {
+		"build": "tsdown",
+		"check-types": "tsc -b",
+		"compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+		"dev": "tsx watch src/index.ts",
+		"start": "node dist/index.js",
+		"test": "jest",
+		"test:coverage": "jest --coverage",
+		"test:watch": "jest --watch"
+	},
+	"dependencies": {
+		"@mini-task-tracker/db": "*",
+		"bcrypt": "^5.1.1",
+		"cors": "^2.8.5",
+		"dotenv": "^17.2.2",
+		"express": "^5.1.0",
+		"express-rate-limit": "^8.2.1",
+		"helmet": "^8.1.0",
+		"jsonwebtoken": "^9.0.2",
+		"zod": "^4.1.11"
+	},
+	"devDependencies": {
+		"@types/bcrypt": "^5.0.2",
+		"@types/cors": "^2.8.17",
+		"@types/express": "^5.0.1",
+		"@types/jest": "^30.0.0",
+		"@types/jsonwebtoken": "^9.0.7",
+		"@types/node": "^22.13.11",
+		"@types/supertest": "^6.0.3",
+		"jest": "^30.2.0",
+		"mongodb-memory-server": "^10.3.0",
+		"redis-mock": "^0.56.3",
+		"supertest": "^7.1.4",
+		"ts-jest": "^29.4.5",
+		"tsdown": "^0.15.5",
+		"tsx": "^4.19.2",
+		"typescript": "^5.8.2"
+	}
+}
