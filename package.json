@@ -1,0 +1,43 @@
+{
+	"name": "mini-task-tracker",
+	"private": true,
+	"type": "module",
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "turbo dev",
+		"build": "turbo build",
+		"start": "turbo start",
+		"dev:server": "turbo -F server dev",
+		"check": "biome check --write .",
+		"check-types": "turbo check-types",
+		"test": "npm run test -w server",
+		"test:coverage": "npm run test:coverage -w server",
+		"test:watch": "npm run test:watch -w server",
+		"db:start": "turbo -F @mini-task-tracker/db db:start",
+		"db:watch": "turbo -F @mini-task-tracker/db db:watch",
+		"db:stop": "turbo -F @mini-task-tracker/db db:stop",
+		"db:down": "turbo -F @mini-task-tracker/db db:down",
+		"prepare": "husky"
+	},
+	"dependencies": {
+		"dotenv": "^17.2.2",
+		"zod": "^4.1.11"
+	},
+	"devDependencies": {
+		"turbo": "^2.5.4",
+		"@biomejs/biome": "^2.2.0",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.1.2",
+		"tsdown": "^0.15.5",
+		"@types/node": "^22.13.11"
+	},
+	"lint-staged": {
+		"*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
+			"biome check --write ."
+		]
+	},
+	"packageManager": "npm@11.3.0"
+}
