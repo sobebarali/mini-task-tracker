@@ -4,7 +4,6 @@ services:
   mongodb:
     image: mongo:7
     container_name: mini-task-tracker-mongodb
-    command: --bind_ip_all
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: password
@@ -14,7 +13,7 @@ services:
     volumes:
       - mini-task-tracker_mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--username", "root", "--password", "password", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
