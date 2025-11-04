@@ -1,14 +1,6 @@
-import { redis, Task } from "@mini-task-tracker/db";
+import { Task } from "@mini-task-tracker/db";
+import { invalidateCache } from "../helpers/cache-invalidator";
 import type { typeResult } from "../types/delete.task";
-
-// Helper to invalidate user cache
-const invalidateCache = async (userId: string): Promise<void> => {
-	const pattern = `tasks:${userId}*`;
-	const keys = await redis.keys(pattern);
-	if (keys.length > 0) {
-		await redis.del(...keys);
-	}
-};
 
 export default async function remove({
 	taskId,

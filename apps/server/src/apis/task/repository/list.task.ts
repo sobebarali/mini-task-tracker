@@ -1,20 +1,10 @@
-import { type ITask, redis, Task } from "@mini-task-tracker/db";
+import { redis, Task } from "@mini-task-tracker/db";
 import { logDebug, logInfo } from "../../../utils/logger";
+import { taskToPlain } from "../helpers/task-transformer";
 import type { typeResult } from "../types/list.task";
 
 const CACHE_TTL = 300; // 5 minutes
 const CACHE_KEY_PREFIX = "tasks:";
-
-// Helper to convert Mongoose document to plain object
-const taskToPlain = (task: ITask) => ({
-	id: String(task._id),
-	title: task.title,
-	description: task.description,
-	status: task.status,
-	dueDate: task.dueDate?.toISOString(),
-	owner: String(task.owner),
-	createdAt: task.createdAt.toISOString(),
-});
 
 // Helper to generate cache key with filters
 const generateCacheKey = (

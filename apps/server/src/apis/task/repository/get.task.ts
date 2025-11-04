@@ -1,16 +1,6 @@
-import { type ITask, Task } from "@mini-task-tracker/db";
+import { Task } from "@mini-task-tracker/db";
+import { taskToPlain } from "../helpers/task-transformer";
 import type { typeResult } from "../types/get.task";
-
-// Helper to convert Mongoose document to plain object
-const taskToPlain = (task: ITask) => ({
-	id: String(task._id),
-	title: task.title,
-	description: task.description,
-	status: task.status,
-	dueDate: task.dueDate?.toISOString(),
-	owner: String(task.owner),
-	createdAt: task.createdAt.toISOString(),
-});
 
 export default async function get({
 	taskId,
