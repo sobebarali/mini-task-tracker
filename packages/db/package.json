@@ -19,7 +19,7 @@
 		"db:down": "docker compose down"
 	},
 	"devDependencies": {
-		"tsdown": "^0.15.5",
+		"tsdown": "^0.16.1",
 		"@types/node": "^22.13.11"
 	},
 	"peerDependencies": {
