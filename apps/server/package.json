@@ -37,7 +37,7 @@
 		"redis-mock": "^0.56.3",
 		"supertest": "^7.1.4",
 		"ts-jest": "^29.4.5",
-		"tsdown": "^0.15.5",
+		"tsdown": "^0.16.1",
 		"tsx": "^4.19.2",
 		"typescript": "^5.8.2"
 	}
